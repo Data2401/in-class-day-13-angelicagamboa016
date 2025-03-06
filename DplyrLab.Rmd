@@ -1,5 +1,5 @@
 ---
-title: "Intro to dplyr -  Lab"
+title: "Gamboa_Intro to dplyr -  Lab"
 output: html_document
 ---
 ```{r}
@@ -26,14 +26,17 @@ my_flights <- flights ## getting a copy of the data in the environment
 1. Use functions to inspect it: how many rows and columns does it have? What are the names of the columns? Hint: Use `??flights` to search for documentation on the data set (for what the columns contain)
 
 ```{r}
-
+nrow(my_flights)
+ncol(my_flights)
+# names of the columns: year, month, day, dep_time, arr_time, sched_dep_time, sched_arr_time, dep_delay, arr_delay, carrier, flight, tailnum, origin, dest, air_time, distance, hour, minute, time_hour
 ```
 
 
 2. Use `dplyr` to give the data frame a new column that is the amount of time gained or lost while flying (that is: how much of the delay arriving occurred during flight, as opposed to before departing).
 
 ```{r}
-
+my_flights <- my_flights %>% mutate(time_gained = dep_delay - arr_delay)
+  
 ```
 
 
@@ -41,26 +44,27 @@ my_flights <- flights ## getting a copy of the data in the environment
 3. Use `dplyr` to sort your data frame in descending order by the column you just created. Remember to save this as a variable (or in the same one!)
 
 ```{r}
-
+myflights <- my_flights %>% arrange(desc(time_gained))
 ```
 
 4. If you haven't already, do the last 2 steps in a single statement using the pipe operator. 
 
 ```{r}
-
+myflights <- my_flights %>%
+  mutate(time_gained = dep_delay - arr_delay) %>% arrange(desc(time_gained))
 ```
 
 5. Make a histogram of the amount of time gained using the `hist()` function
 
 ```{r}
-
+hist(my_flights$time_gained)
 ```
 
 
 6. On average, did flights gain or lose time? Note: use the `na.rm = TRUE` argument to remove NA values from your aggregation
 
 ```{r}
-
+mean(my_flights$time_gained, na.rm = TRUE)
 
 ```
 
@@ -68,7 +72,8 @@ my_flights <- flights ## getting a copy of the data in the environment
 7. Create a data.frame of flights with a destination of Hobby Airport (Airport code 'HOU'), only including the origin, destination, and the "made_up_time" column you just created
 
 ```{r}
-
+hou_flights <- my_flights %>% filter(dest == "HOU") %>% select(origin, dest, time_gained)
+hou_flights
 ```
 
 
@@ -76,7 +81,11 @@ my_flights <- flights ## getting a copy of the data in the environment
 
 
 ```{r}
-
+sea_flights <- my_flights %>%
+  filter(dest == "SEA") %>% 
+  mutate(time_gained = arr_delay - dep_delay)
+mean_time_gained <- mean(sea_flights$time_gained, na.rm = TRUE) 
+mean_time_gained
 
 ```
 
@@ -87,22 +96,29 @@ my_flights <- flights ## getting a copy of the data in the environment
 Go back to our flights exercise data. Consider flights from JFK to SEA. What was the average, min, and max air time of those flights? Use pipes to answer this question in one statement (without showing any other data)!
 
 ```{r}
-
+my_flights %>%
+  filter(origin == "JFK", dest == "SEA") %>%
+  na.omit(cols = c(air_time, dep_time)) %>% 
+  summarize(mean(air_time), min(air_time), max(air_time))
 
 ```
 
 Consider flights coming into Houston (HOU and IAH). What is the mean arrival delay by departure airport? 
 
 ```{r}
-
+my_flights %>% filter(dest == "HOU" | dest == "IAH") %>%
+  group_by(origin, dest) %>%
+  summarise(mean(arr_delay, na.rm = TRUE))
 
 ```
 
 Getting ready for next class: Create a list of all the different values for the destination airport.
 
 ```{r}
-
-
+unique_destinations <- flights %>%
+  distinct(dest) %>%
+  arrange(dest)
+unique_destinations
 ```
 
 Hmm... I don't know about you, but it sure does seem like there are some values here I don't recognize! 
@@ -133,7 +149,10 @@ starwars %>% filter(species == "Human") %>% plot(mass ~ height, data = .)
 Now, change this to see the same plot for the Droids. 
 
 ```{r}
+droids <- starwars %>% filter(species == "Droid")
+plot(droids$height, droids$mass)
 
+starwars %>% filter(species == "Droid") %>% plot(mass ~ height, data = .)
 
 ```
 
@@ -141,21 +160,32 @@ Now, change this to see the same plot for the Droids.
 How many characters are from each planet?
 
 ```{r}
-
-
+characters_planet <- starwars %>%
+  group_by(homeworld) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  arrange(count)
+characters_planet
 
 ```
 
 If you wanted to arrange this in descending order, what would you add to the pipe? 
 
 ```{r}
-
+characters_planet <- starwars %>%
+  group_by(homeworld) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  arrange(desc(count))
+characters_planet
 ```
 
 Find the average height for each eye color. You might find some of the answers to be strange, but keep going! 
 
 ```{r}
-
+average_h_eye_ <- starwars %>%
+  group_by(eye_color) %>%
+  summarise(average_height = mean(height, na.rm = TRUE), .groups = 'drop') %>%
+  arrange(desc(average_height)) 
+average_h_eye_
 
 ```
 
@@ -163,15 +193,21 @@ So.... What's with the NAs? Filter down to just brown eyes find out what's going
 
 
 ```{r}
-
-
+brown_eyes <- starwars %>%
+  filter(eye_color == "brown")
+brown_eyes_with_na <- brown_eyes %>%
+  filter(is.na(height))
+brown_eyes_with_na
 ```
 
 Okay, so we have missing data here. Try summarising with `na.omit(height)` instead of just `height` or adding `na.rm = T` to the mean function inside summarize. 
 
 
 ```{r}
-
+average_h_brown_eyes <- starwars %>%
+  filter(eye_color == "brown") %>%
+  summarise(average_height = mean(na.omit(height)), .groups = 'drop')
+average_h_brown_eyes
 
 ```
 
@@ -179,6 +215,30 @@ So, who is the tallest male? How many blue eyed women are there? How many gender
 
 
 ```{r}
+tallest_male <- starwars %>%
+  filter(gender == "male") %>%
+  filter(!is.na(height)) %>%
+  slice(which.max(height))
+
+
+blue_eyed_women <- starwars %>%
+  filter(eye_color == "blue", gender == "female") %>%
+  summarise(count = n())
+
+
+gender_count <- starwars %>%
+  summarise(distinct_genders = n_distinct(gender))
+
+
+# How about average mass of characters by species?
+average_mass_by_species <- starwars %>%
+  group_by(species) %>%
+  summarise(average_mass = mean(mass, na.rm = TRUE), .groups = 'drop')
+
+tallest_male
+blue_eyed_women
+gender_count
+average_mass_by_species
 
 ```
 
